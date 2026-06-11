@@ -45,11 +45,12 @@ def apply_camera_controls(cap, cam: dict):
             cap.set(prop, float(ctrl[key]))
 
 
-def open_top_camera(cam: dict, index=None):
-    """config.cameras.top(cam) 설정으로 VideoCapture 를 열어 반환.
+def open_camera(cam: dict, index=None):
+    """config.cameras.* (cam) 설정으로 VideoCapture 를 열어 반환 (상부·측면 공용).
 
     Windows 실 카메라는 DSHOW 백엔드라야 노출/화벨 수동 제어가 먹는다.
     index 를 주면 config 의 index 대신 사용 (라이브뷰 --source 대응).
+    cam 에 width/height/fps/controls 가 없으면 apply_camera_controls 의 기본값 적용.
     """
     idx = cam["index"] if index is None else index
     if sys.platform == "win32":
@@ -58,6 +59,10 @@ def open_top_camera(cam: dict, index=None):
         cap = cv2.VideoCapture(idx)
     apply_camera_controls(cap, cam)
     return cap
+
+
+# 하위호환 별칭 (camera_top.py / live_yolo.py 가 사용)
+open_top_camera = open_camera
 
 
 def center_square(frame):
