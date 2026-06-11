@@ -14,7 +14,7 @@ state_machine.py 인터페이스 100% 보존:
 
 config.json 의 robot 섹션에 아래 키가 있어야 함 (없으면 기본값 사용):
     "robot": {
-      "host": "192.168.0.47",      # myCobot Pi IP (확인)
+      "host": "192.168.0.8",       # myCobot Pi IP (RealVNC 로 hostname -I 확인, 2026-06-11)
       "port": 9000,                # 공식 소켓 서버 포트 (커스텀 9002 아님!)
       "speed": 80,
       "dummy_mode": false,
@@ -42,7 +42,7 @@ _R = config["robot"]
 DUMMY_MODE = _R["dummy_mode"]
 
 # ── 실로봇 파라미터 (dummy 면 사용 안 함) ──────────────────────────────
-HOST  = _R.get("host", "192.168.0.47")
+HOST  = _R.get("host", "192.168.0.8")
 PORT  = int(_R.get("port", 9000))
 SPEED = int(_R.get("speed", 80))
 GRIPPER_OPEN  = int(_R.get("gripper_open", 100))

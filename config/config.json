@@ -139,7 +139,7 @@
   },
 
   "robot": {
-    "host": "192.168.0.47",
+    "host": "192.168.0.8",
     "port": 9000,
     "_port_note": "pymycobot 공식 소켓 서버 포트(9000) — 기존 커스텀 RPi4 JSON 서버(9002) 아님. real 전환 시 Pi에서 공식 소켓 서버 실행 + 'pip install pymycobot' 필요. mock 은 mock.robot.port(9002, MockMyCobot) 사용.",
     "speed": 80,
@@ -147,7 +147,7 @@
     "gripper_open": 100,
     "gripper_close": 30,
     "path_file": "config/robot_path.json",
-    "_path_note": "경로 교시 파일(우선). Pi 에서 tools/robot_teach.py 로 교시 → 'scp er@192.168.0.46:~/visipick/path.json config/robot_path.json'. 있으면 4자세 무시하고 경로 재생. speed/arrive_tol_deg/arrive_wait_sec 는 path 파일 키가 우선.",
+    "_path_note": "경로 교시 파일(우선). Pi 에서 tools/robot_teach.py 로 교시 → 'scp er@192.168.0.8:~/visipick/path.json config/robot_path.json'. 있으면 4자세 무시하고 경로 재생. speed/arrive_tol_deg/arrive_wait_sec 는 path 파일 키가 우선.",
     "pickup_angles": [0, 0, 0, 0, 0, 0],
     "lift_angles":   [0, 0, 0, 0, 0, 0],
     "place_angles":  [0, 0, 0, 0, 0, 0],
