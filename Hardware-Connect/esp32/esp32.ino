@@ -32,6 +32,7 @@
 #define CONV_DIR    12
 #define CONV_PUL    14
 #define END_SENSOR  34
+#define ESTOP_PIN   25
 
 // ── L9110S 컨베이어 config ────────────────
 #define CONV2_A  26  // A모터 (중복 부품 반환 컨베이어 — 상시 ON)
@@ -99,6 +100,12 @@ bool serialConnected = false;
 #define ENABLE_PERIODIC_STATUS 0
 #define STATUS_INTERVAL 200
 unsigned long lastStatusTime = 0;
+
+// ── 물리 비상정지 버튼 ───────────────────
+volatile bool estopPressed = false;
+void IRAM_ATTR onEstopPressed() {
+  estopPressed = true;   // 인터럽트 핸들러 — 플래그만 세움, 처리는 loop()에서
+}
 
 // ── 끝단 센서 상태 ────────────────────────
 bool endSensorState = false;
@@ -514,6 +521,10 @@ void setup() {
   // 끝단 센서 초기화 — GPIO34는 내부 풀업 불가(입력전용). 외부 풀업 저항 필요.
   pinMode(END_SENSOR, INPUT);
 
+  // 물리 비상정지 버튼 — GPIO25, INPUT_PULLUP (버튼 GND연결, 눌리면 LOW)
+  pinMode(ESTOP_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(ESTOP_PIN), onEstopPressed, FALLING);
+
   // L9110S 초기화
   pinMode(CONV2_A, OUTPUT);
   pinMode(CONV2_B, OUTPUT);
@@ -539,6 +550,13 @@ void setup() {
 // ── loop ──────────────────────────────────
 void loop() {
   esp_task_wdt_reset();
+
+  // 물리 비상정지 버튼 처리 (인터럽트 플래그 → 모터 정지 + Python 통보)
+  if (estopPressed) {
+    estopPressed = false;
+    emergencyStop();
+    Serial.println("{\"type\":\"emergency_stop\",\"source\":\"button\",\"status\":\"ok\"}");
+  }
 
   updateGates();
   updateConveyor();
