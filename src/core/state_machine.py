@@ -10,7 +10,7 @@ from src.vision.camera_top import CameraTop
 from src.vision.camera_side import CameraSide
 from src.vision.classifier import Classifier
 from src.vision.pin_inspector import PinInspector
-from src.orchestrator.decision import Decision, gate_action_for, verdict_to_label, defect_code_for, defect_codes_for
+from src.orchestrator.decision import Decision, gate_action_for, verdict_to_label, defect_codes_for
 from src.utils.part_map import to_korean
 from src.orchestrator.recipe_mgr import RecipeManager
 from src.orchestrator.tray_mgr import TrayManager
@@ -54,6 +54,16 @@ CAPTURE_DELAY_SEC = config.get("sensor", {}).get("trigger_to_capture_sec", 0.0)
 # 하나라도 불량(DEFECT)이면 DEFECT. 각도에 따라 불량이 한 프레임에만 보여도 잡는다.
 INSPECT_FRAMES = int(config["vision"].get("inspect_frames", 5))
 INSPECT_WINDOW = float(config["vision"].get("inspect_window_sec", 1.0))
+# 측면 핀검사 대상 부품(영문 part). 상부가 이 목록의 부품으로 판정했을 때만 측면
+# 핀휨 검사를 돌린다. 그 외(방열판·커패시터 등)는 측면검사 스킵 → 핀판정 UNKNOWN.
+SIDE_INSPECT_PARTS = set(config["vision"].get("pin_inspector", {})
+                         .get("inspect_parts", ["IC", "TerminalBlock"]))
+# 측면검사 스킵/중립 결과(BENT 아님 → 불량 유발 안 함). per-frame 판정은 top-only 로
+# 두고, 측면은 10프레임 투표로 끝에서 한 번에 반영한다(아래 SIDE_NORMAL_MIN).
+_SIDE_SKIP = {"verdict": "UNKNOWN", "pin_count": 0, "gap_cv": 0.0, "tip_y_range_px": 0}
+# 측면 핀 투표: NORMAL 이 이 표 수 이상 '그리고' NORMAL>=BENT 면 정상, 아니면 핀휨.
+SIDE_NORMAL_MIN = int(config["vision"].get("pin_inspector", {})
+                      .get("side_normal_min_votes", 3))
 # 영상 연속 송출: 카메라 최신 프레임을 이 fps 로 frame_bus 에 계속 발행(검사와 별개).
 # 0 이면 연속 송출 끔(검사 시점에만 프레임 갱신).
 STREAM_FPS    = float(config.get("stream", {}).get("publish_fps", 10))
@@ -112,7 +122,10 @@ class VisiPickStateMachine:
         )
 
         # 디바이스
-        self._serial = SerialController(on_sensor=self.on_sensor_triggered)
+        self._serial = SerialController(
+            on_sensor=self.on_sensor_triggered,
+            on_estop=self._emergency_stop,   # 물리 버튼 → FSM 비상정지
+        )
         self._robot  = Robot()
         self._agv    = get_agv_manager()
 
@@ -181,9 +194,8 @@ class VisiPickStateMachine:
     def _emergency_stop(self):
         if self._stop_requested.is_set():
             return
-        logger.warning("비상정지 요청 — 일시정지(프로그램 유지). 재개: 컨베이어 시작 + 비전 시작")
+        logger.warning("비상정지 요청 — 일시정지(프로그램 유지). 재개: 컨베이어 시작")
         self._stop_requested.set()
-        self._inspect_enabled = False        # 검사 중지 — 재개 시 '비전 시작' 필요
         self._serial.emergency_stop()       # 컨1·컨2·컨3·게이트 전체 정지
         with self._gate_lock:
             self._gate_queue.clear()
@@ -271,25 +283,35 @@ class VisiPickStateMachine:
             logger.info("[진단] 검사 시작 (멀티프레임)")
             t0 = time.time()
 
-            # 멀티프레임 보수 판정: INSPECT_WINDOW 초 동안 INSPECT_FRAMES 장 추론.
-            # 비정지 컨베이어로 각도가 바뀌므로, 불량이 한 프레임에만 보여도 DEFECT 로 잡는다.
+            # 멀티프레임 판정: INSPECT_WINDOW 초 동안 INSPECT_FRAMES(10) 장 추론.
+            #   - 상부(종류·파손): 보수적 — 하나라도 DEFECT면 DEFECT.
+            #   - 측면(핀휨): per-frame 결정에 넣지 않고 verdict만 모았다가 끝에서 '투표'.
+            #     (각도 의존 오검출 방지: NORMAL>=SIDE_NORMAL_MIN '그리고' NORMAL>=BENT 면 정상)
             frames = []
+            side_verdicts = []          # 측면 핀 투표용 (IC/터미널블록일 때만 채워짐)
+            last_side_frame = None       # 스트리밍용 마지막 측면 프레임
             interval = INSPECT_WINDOW / max(INSPECT_FRAMES, 1)
             for i in range(max(INSPECT_FRAMES, 1)):
                 tf = time.time()
                 frame_top  = self._cam_top.capture()
-                frame_side = self._cam_side.capture()
                 top  = self._clf.classify_top(frame_top)
-                side = self._pin.inspect_side(frame_side, top.get("part"))
-                result = self._decider.evaluate(top, side)
+                # 측면 핀검사는 핀 있는 부품(IC·터미널블록)일 때만 수행하고 verdict 수집.
+                if top.get("part") in SIDE_INSPECT_PARTS:
+                    frame_side = self._cam_side.capture()
+                    side = self._pin.inspect_side(frame_side, top.get("part"))
+                    side_verdicts.append((side.get("verdict") or "UNKNOWN").upper())
+                    if frame_side is not None:
+                        last_side_frame = frame_side
+                # per-frame 판정은 top-only (측면은 끝에서 투표로 반영)
+                result = self._decider.evaluate(top, dict(_SIDE_SKIP))
                 cls    = verdict_to_label(result.verdict)
-                frames.append({"cls": cls, "result": result, "top": top, "side": side,
-                               "frame_top": frame_top, "frame_side": frame_side})
+                frames.append({"cls": cls, "result": result, "top": top,
+                               "frame_top": frame_top})
                 # 윈도우 간격 맞춰 페이싱 (추론이 빠르면 잠깐 대기)
                 if i < INSPECT_FRAMES - 1:
                     time.sleep(max(0.0, interval - (time.time() - tf)))
 
-            # 보수적 집계: DEFECT 하나라도 있으면 DEFECT 우선.
+            # 상부 보수적 집계: DEFECT 하나라도 있으면 DEFECT 우선.
             #   없으면 NEEDED/DUPLICATE(검출됨) 중 최고신뢰, 그것도 없으면 UNCERTAIN.
             defects = [f for f in frames if f["cls"] == "DEFECT"]
             valids  = [f for f in frames if f["cls"] in ("NEEDED", "DUPLICATE")]
@@ -302,23 +324,39 @@ class VisiPickStateMachine:
 
             result     = win["result"]
             top        = win["top"]
-            side       = win["side"]
             frame_top  = win["frame_top"]
-            frame_side = win["frame_side"]
+            frame_side = last_side_frame
             cls        = win["cls"]
+
+            # ── 측면 핀 투표 (IC·터미널블록만) ──────────────────────────
+            #   상부가 양품(NEEDED)/중복(DUPLICATE)으로 본 부품에 한해 핀휨이면 DEFECT로 덮음.
+            #   상부가 이미 DEFECT/UNCERTAIN이면 그 사유가 우선(핀투표 영향 없음).
+            side_bent = False
+            if top.get("part") in SIDE_INSPECT_PARTS:
+                n_normal = side_verdicts.count("NORMAL")
+                n_bent   = side_verdicts.count("BENT")
+                pin_ok   = (n_normal >= SIDE_NORMAL_MIN) and (n_normal >= n_bent)
+                side_bent = not pin_ok
+                logger.info(f"[측면] 투표 NORMAL={n_normal} BENT={n_bent} "
+                            f"UNKNOWN={len(side_verdicts)-n_normal-n_bent} → "
+                            f"{'정상' if pin_ok else '핀휨'}")
+                if side_bent and cls in ("NEEDED", "DUPLICATE"):
+                    cls = "DEFECT"
+
             action = gate_action_for(cls)                          # 김선진 게이트 매핑 그대로
-            defect = defect_code_for(result, top, side)            # 주 불량 1개(NONE|BENT_PIN|BROKEN|UNKNOWN)
-            # 한 부품에 불량이 2종 이상(예: IC 의 Pinbent+Broken) 잡힐 수 있어, 멀티프레임
-            # 전체에서 검출된 모든 불량 클래스를 합집합으로 모아 전부 전송한다.
+            # 불량 코드: 상부 불량 클래스 합집합 + 측면 핀투표(BENT) 반영.
             if cls == "DEFECT":
                 _all_defcls = []
                 for f in frames:
                     for dc in f["top"].get("defect_classes", []):
                         if dc not in _all_defcls:
                             _all_defcls.append(dc)
-                defect_codes = defect_codes_for(_all_defcls, side)
+                _side_for_codes = {"verdict": "BENT"} if side_bent else {}
+                defect_codes = defect_codes_for(_all_defcls, _side_for_codes)
+                defect = defect_codes[0] if defect_codes else "UNKNOWN"
             else:
                 defect_codes = []
+                defect = "NONE"
 
             # 부품명: 영문(비전) → 한글(표시/레시피/DB). 단일 변환 지점 = part_map
             part_type  = to_korean(top.get("part")) or "UNKNOWN"
