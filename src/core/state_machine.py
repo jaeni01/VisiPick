@@ -29,6 +29,7 @@ TOTAL_CYCLES   = config["system"]["demo_cycles"]
 DUMMY_INTERVAL = config["vision"]["dummy_interval_sec"]
 AGV_COUNT      = config["agv"]["count"]
 AGV_START      = config["agv"]["nodes"]["start"]
+TRAYS_PER_AGV  = int(config["agv"].get("trays_per_load", 1))   # AGV 한 대에 싣는 트레이 수(자리별 경로)
 RECIPE_PARTS   = config["recipe"]["parts"]
 CONVEYOR_SPEED = config["conveyor"]["speed_cm_per_s"]
 
@@ -83,6 +84,8 @@ class VisiPickStateMachine:
     def __init__(self):
         self.state       = State.IDLE
         self.cycle       = 0
+        self._agv_slot   = 0     # 현재 AGV 에 실은 트레이 수 (1..TRAYS_PER_AGV, 다 차면 출발)
+        self._agv_trip   = 0     # AGV 출발 횟수 (어느 AGV 차례인지 결정)
         self._session_id = None
         self._inspect_enabled = True
         self._running        = True
@@ -186,6 +189,7 @@ class VisiPickStateMachine:
             self._gate_queue.clear()
         self._recipe.reset()
         self._tray.reset()
+        self._agv_slot = 0          # AGV 적재 카운트도 초기화 (반쯤 찬 AGV 가정 안 함)
         self._inspect_enabled = True
         self._serial.set_conveyor_speed(CONVEYOR_SPEED)
         self._transition(State.RUNNING)
@@ -419,32 +423,45 @@ class VisiPickStateMachine:
         if frame_side is not None:
             frame_bus.publish("side", frame_side)
 
-    # ── 트레이 이송 + AGV 출발 ────────────────────────────────
+    # ── 트레이 이송 + (트레이 다 차면) AGV 출발 ─────────────────
     def _tray_transfer(self):
         self._transition(State.TRAY_TRANSFER)
+
+        # 이 AGV 에 싣는 몇 번째 트레이인지(1..TRAYS_PER_AGV) — 자리별 경로 선택용
+        self._agv_slot += 1
+        slot = self._agv_slot if TRAYS_PER_AGV > 1 else None   # 단일 적재면 슬롯 개념 없음
 
         # 1) 컨3 1칸 전진 (완성 트레이를 이재 위치로 이동 / 다음 빈 트레이 공급)
         self._serial.advance_tray()
         self._publish_event("Conveyor", "INFO", "컨3 — 트레이 1칸 전진 (2초 구동)")
 
-        # 2) 로봇이 완성 트레이를 AGV에 이재. 실패는 비치명 처리 —
-        #    로봇 미준비여도 다음 트레이로 계속 진행.
-        #    (실로봇 도입 후 '실패 시 정지'가 필요하면 여기서 raise 로 되돌릴 것.)
-        self._publish_event("Robot", "INFO", "트레이 이송 시작")
+        # 2) 로봇이 완성 트레이를 AGV의 해당 자리에 이재. 실패는 비치명 처리.
+        self._publish_event("Robot", "INFO",
+                            f"트레이 이송 시작 (AGV 자리 {self._agv_slot}/{TRAYS_PER_AGV})")
         try:
-            if not self._robot.transfer_tray():
+            if not self._robot.transfer_tray(slot=slot):
                 logger.warning("로봇 트레이 이송 실패 — 건너뛰고 다음 트레이 진행")
         except Exception as e:
             logger.warning(f"로봇 이송 예외 — 건너뜀: {e}")
 
-        # 3) AGV 창고 출발
-        agv_id = (self.cycle % AGV_COUNT) + 1
-        self._agv.dispatch(agv_id, source=AGV_START,
-                           recipe_session_id=self._session_id)
-        self._publish_event("AGV", "INFO", f"AGV {agv_id} 창고 출발")
-
+        # 트레이 단위로 레시피 세션 기록
         complete_recipe_session(self._session_id, self._tray.get_count())
-        logger.info(f"레시피 완료 — 수집 {self._tray.get_count()}개, AGV {agv_id} 출발")
+        logger.info(f"레시피 완료 — 수집 {self._tray.get_count()}개 "
+                    f"(AGV 자리 {self._agv_slot}/{TRAYS_PER_AGV})")
+
+        # 3) AGV 가 다 찼을 때만 창고 출발 (3개 적재 후 1회 출발)
+        if self._agv_slot >= TRAYS_PER_AGV:
+            agv_id = (self._agv_trip % AGV_COUNT) + 1
+            self._agv.dispatch(agv_id, source=AGV_START,
+                               recipe_session_id=self._session_id)
+            self._publish_event("AGV", "INFO",
+                                f"AGV {agv_id} 창고 출발 (트레이 {TRAYS_PER_AGV}개 적재)")
+            logger.info(f"AGV {agv_id} 출발 — 트레이 {TRAYS_PER_AGV}개 만재")
+            self._agv_trip += 1
+            self._agv_slot = 0
+        else:
+            self._publish_event("AGV", "INFO",
+                                f"AGV 적재 {self._agv_slot}/{TRAYS_PER_AGV} — 출발 대기")
 
         self._recipe.reset()
         self._tray.reset()
