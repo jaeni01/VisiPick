@@ -139,15 +139,16 @@
   },
 
   "robot": {
-    "host": "192.168.0.8",
+    "host": "192.168.0.17",
     "port": 9000,
     "_port_note": "pymycobot 공식 소켓 서버 포트(9000) — 기존 커스텀 RPi4 JSON 서버(9002) 아님. real 전환 시 Pi에서 공식 소켓 서버 실행 + 'pip install pymycobot' 필요. mock 은 mock.robot.port(9002, MockMyCobot) 사용.",
     "speed": 80,
-    "dummy_mode": true,
+    "dummy_mode": false,
     "gripper_open": 100,
-    "gripper_close": 30,
+    "gripper_close": 10,
+    "_gripper_note": "값 0~100, 낮을수록 더 닫힘. close=0 은 최대 그립력(물체에 닿으면 그 자리에서 힘으로 누름) — 트레이 안 놓치게. 너무 세서 부품/그리퍼 무리가면 5~10 으로 올릴 것.",
     "path_file": "config/robot_path.json",
-    "_path_note": "경로 교시 파일(우선). Pi 에서 tools/robot_teach.py 로 교시 → 'scp er@192.168.0.8:~/visipick/path.json config/robot_path.json'. 있으면 4자세 무시하고 경로 재생. speed/arrive_tol_deg/arrive_wait_sec 는 path 파일 키가 우선.",
+    "_path_note": "경로 교시 파일(우선). Pi 에서 tools/robot_teach.py 로 교시 → 'scp er@<Pi-IP>:~/visipick/path.json config/robot_path.json'. 있으면 4자세 무시하고 경로 재생. speed/arrive_tol_deg/arrive_wait_sec 는 path 파일 키가 우선. (Pi IP는 DHCP라 바뀜 — host 키와 함께 실측값으로 갱신할 것)",
     "pickup_angles": [0, 0, 0, 0, 0, 0],
     "lift_angles":   [0, 0, 0, 0, 0, 0],
     "place_angles":  [0, 0, 0, 0, 0, 0],
@@ -160,6 +161,8 @@
     "count": 2,
     "speed": 50,
     "dummy_mode": false,
+    "trays_per_load": 3,
+    "_trays_per_load_note": "AGV 한 대에 싣는 트레이 수. 3 이면 트레이 3개를 자리별 경로(robot_path_1/2/3.json)로 싣고 다 차면 1회 출발. 1 이면 트레이마다 즉시 출발(단일 robot_path.json). 자리별 경로는 tools/robot_teach.py 의 'save 1/2/3' 로 교시.",
     "nodes": {
       "start":     "N1",
       "warehouse": "WAREHOUSE"
