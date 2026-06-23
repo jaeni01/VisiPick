@@ -173,4 +173,4 @@ def _stream_to(self, start, target, deg_s, dt=0.05):
 | ![화면1](images/01.png) | 전체 공정 플로우차트 — 초기화·MQTT 연결부터 IR 센서 감지, 2개 카메라 검사(상부 YOLO·측면 OpenCV), 불량 Gate 분류, 트레이 적재, 로봇 AGV 상차, AGV 운반·충전 스테이션 복귀, 비상정지(EMERGENCY_STOP) 분기까지의 상태 흐름 |
 
 ## 🎬 시연 영상
-[![시연 영상](images/thumbnail.png)](https://youtu.be/rDrZn_7qteQ)
+[![시연 영상](https://img.youtube.com/vi/rDrZn_7qteQ/0.jpg)](https://youtu.be/rDrZn_7qteQ)
