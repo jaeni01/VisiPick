@@ -167,13 +167,10 @@ def _stream_to(self, start, target, deg_s, dt=0.05):
 > **Solution:** 전원 차단 대신 소프트웨어 레벨 정지 경로를 설계했습니다. 비전 시스템이 이상을 감지하면 중앙 서버가 소프트웨어 E-stop을 발동하고, 비상정지를 프로그램 종료가 아닌 "일시정지"로 처리해 진행 중이던 레시피·트레이 상태를 유지한 채 재개할 수 있게 했습니다.
 
 ## 📸 스크린샷
-> `images/` 폴더에 이미지를 추가한 뒤 아래 경로를 맞춰주세요.
 
 | 화면 | 설명 |
 |------|------|
-| ![화면1](images/01.png) | Camera1 상부 검사 — YOLO 바운딩 박스 + 분류(NEEDED/DUPLICATE/DEFECT) 라벨 |
-| ![화면2](images/02.png) | Camera2 측면 핀 검사 — 핀 끝점·휨(lean) 시각화 |
-| ![화면3](images/03.png) | HMI 6분할 대시보드 — 영상·분류 현황·레시피 체크리스트·AGV 2D맵·이벤트 로그 |
+| ![화면1](images/01.png) | 전체 공정 플로우차트 — 초기화·MQTT 연결부터 IR 센서 감지, 2개 카메라 검사(상부 YOLO·측면 OpenCV), 불량 Gate 분류, 트레이 적재, 로봇 AGV 상차, AGV 운반·충전 스테이션 복귀, 비상정지(EMERGENCY_STOP) 분기까지의 상태 흐름 |
 
 ## 🎬 시연 영상
 [![시연 영상](images/thumbnail.png)](https://youtu.be/rDrZn_7qteQ)
