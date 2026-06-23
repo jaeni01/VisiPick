@@ -1,10 +1,12 @@
-import json, threading
+import json, threading, asyncio as _asyncio
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 import paho.mqtt.client as mqtt
 import uvicorn
 from src.utils.config_loader import config
+from src.core import frame_bus
 from src.core.db import (
     get_inspections, get_inspections_search,
     get_stats, get_events,
@@ -12,6 +14,7 @@ from src.core.db import (
     get_agv_missions,
 )
 from src.core.agv_mqtt import get_manager as get_agv_manager
+import asyncio
 
 BROKER = config["mqtt"]["broker"]
 PORT   = config["mqtt"]["port"]
@@ -53,16 +56,33 @@ async def broadcast(data: dict):
 # =====================
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
+main_loop = None
+
+@app.on_event("startup")
+async def _capture_loop():
+    global main_loop
+    main_loop = asyncio.get_running_loop()
+
+
+@app.on_event("startup")
+async def _maybe_autorun_fsm():
+    """config.system.autorun_fsm=true 면 FSM 을 백그라운드 스레드로 동반 기동
+    (로드맵 §0.1 'FSM startup 훅' — 한 명령으로 헤드리스 루프까지 구동).
+
+    기본 false: FSM/API 는 보통 별도 프로세스(python src/core/state_machine.py)로 운용한다.
+    real 모드(카메라·시리얼)면 하드웨어가 있어야 하므로 의도적으로 opt-in."""
+    if not config.get("system", {}).get("autorun_fsm", False):
+        return
+    from src.core.state_machine import VisiPickStateMachine
+    threading.Thread(target=lambda: VisiPickStateMachine().run(), daemon=True).start()
+
 def on_mqtt_message(client, userdata, msg):
-    """MQTT 수신 → WebSocket으로 push"""
     try:
         data = json.loads(msg.payload.decode())
         data["_topic"] = msg.topic
-        import asyncio
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(broadcast(data))
-        loop.close()
-    except:
+        if main_loop is not None:
+            asyncio.run_coroutine_threadsafe(broadcast(data), main_loop)
+    except Exception:
         pass
 
 mqtt_client.on_message = on_mqtt_message
@@ -79,12 +99,45 @@ async def websocket_endpoint(websocket: WebSocket):
     ws_clients.append(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
-            msg = json.loads(data)
-            topic = msg.get("topic", "visipick/system/event")
-            mqtt_client.publish(topic, json.dumps(msg))
+            # 수신 전용 — 들어온 메시지는 무시(제어는 REST만 허용). 연결 유지/끊김 감지용.
+            await websocket.receive_text()
     except WebSocketDisconnect:
         ws_clients.remove(websocket)
+
+# =====================
+# 영상 — MJPEG 스트림 (V6.4: 영상=MJPEG, 제어 채널과 분리)
+# =====================
+STREAM_FPS = config.get("stream", {}).get("fps", 10)
+_BOUNDARY = "frame"
+
+async def _mjpeg_generator(name: str):
+    """프레임 버스의 최신 JPEG 를 multipart/x-mixed-replace 로 연속 송출."""
+    interval = 1.0 / max(STREAM_FPS, 1)
+    while True:
+        jpeg = frame_bus.read_jpeg(name)
+        if jpeg:
+            yield (b"--" + _BOUNDARY.encode() + b"\r\n"
+                   b"Content-Type: image/jpeg\r\n"
+                   b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n"
+                   + jpeg + b"\r\n")
+        await _asyncio.sleep(interval)
+
+@app.get("/video/{name}", tags=["영상"])
+def video_stream(name: str):
+    """카메라 MJPEG 스트림. name = top(상부) | side(측면).
+    WPF/브라우저의 <Image>/<img> src 로 바로 사용."""
+    return StreamingResponse(
+        _mjpeg_generator(name),
+        media_type=f"multipart/x-mixed-replace; boundary={_BOUNDARY}",
+    )
+
+@app.get("/snapshot/{name}", tags=["영상"])
+def snapshot(name: str):
+    """카메라 최신 1프레임(JPEG). 스냅샷/썸네일용."""
+    jpeg = frame_bus.read_jpeg(name)
+    if not jpeg:
+        return Response(status_code=503, content=b"no frame")
+    return Response(content=jpeg, media_type="image/jpeg")
 
 # =====================
 # REST API — 시스템 상태
@@ -200,6 +253,42 @@ def emergency_stop():
         "timestamp": datetime.now().isoformat(),
     }))
     return {"result": "emergency_stop_requested"}
+
+# ── 수동 제어 (Phase 3 / WPF W2) — 게이트·로봇·AGV·리셋 ──────────────────
+@app.post("/api/gate/{gate_no}/push", tags=["제어"])
+def gate_push(gate_no: int):
+    """게이트 푸셔 수동 동작 (1=반환 Gate1, 2=불량 Gate2). FSM이 ESP32로 전달."""
+    mqtt_client.publish("visipick/gate/cmd", json.dumps({
+        "type": "gate_cmd", "gate": gate_no, "action": "push",
+        "timestamp": datetime.now().isoformat(),
+    }))
+    return {"result": "gate_push", "gate": gate_no}
+
+@app.post("/api/robot/transfer", tags=["제어"])
+def robot_transfer():
+    """myCobot 트레이 이재 수동 트리거. FSM이 로봇으로 전달."""
+    mqtt_client.publish("visipick/robot/cmd", json.dumps({
+        "type": "robot_cmd", "action": "transfer",
+        "timestamp": datetime.now().isoformat(),
+    }))
+    return {"result": "robot_transfer_requested"}
+
+@app.post("/api/agv/{cmd}", tags=["제어"])
+def agv_command(cmd: str, agv_id: int = 1):
+    """AGV 수동 명령. cmd=dispatch → 창고 출고(도착 후 자동 하역·N1 복귀)."""
+    if cmd == "dispatch":
+        get_agv_manager().dispatch(agv_id)
+        return {"result": "dispatched", "agv_id": agv_id}
+    return Response(status_code=400, content=f"unknown agv cmd: {cmd}")
+
+@app.post("/api/reset", tags=["제어"])
+def reset():
+    """비상정지/오류 래치 해제 + 레시피·트레이 카운트 초기화 → RUNNING 복귀."""
+    mqtt_client.publish("visipick/system/cmd", json.dumps({
+        "action": "reset",
+        "timestamp": datetime.now().isoformat(),
+    }))
+    return {"result": "reset_requested"}
 
 # =====================
 # REST API — 시스템 이벤트
