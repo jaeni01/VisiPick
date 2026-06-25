@@ -166,11 +166,26 @@ def _stream_to(self, start, target, deg_s, dt=0.05):
 > **Challenge:** 일반적인 비상정지는 전원을 끊지만, myCobot은 12V 전원을 차단하면 중력으로 팔이 무너지고 SD 카드가 손상될 위험이 있었습니다.
 > **Solution:** 전원 차단 대신 소프트웨어 레벨 정지 경로를 설계했습니다. 비전 시스템이 이상을 감지하면 중앙 서버가 소프트웨어 E-stop을 발동하고, 비상정지를 프로그램 종료가 아닌 "일시정지"로 처리해 진행 중이던 레시피·트레이 상태를 유지한 채 재개할 수 있게 했습니다.
 
-## 📸 스크린샷
+## 📸 프로젝트 흐름 및 이미지 기록
+> 전체 구성 → 운영 화면 → 검사 샘플 → 컨베이어 입력 순서로 보면, 이 프로젝트가 단순 검출 데모가 아니라 비전·로봇·AGV·통신을 하나의 상태 흐름으로 묶은 자동 분류 시스템임을 빠르게 확인할 수 있습니다.
+
+### System / Operation
 
 | 화면 | 설명 |
 |------|------|
-| ![화면1](images/01.png) | 전체 공정 플로우차트 — 초기화·MQTT 연결부터 IR 센서 감지, 2개 카메라 검사(상부 YOLO·측면 OpenCV), 불량 Gate 분류, 트레이 적재, 로봇 AGV 상차, AGV 운반·충전 스테이션 복귀, 비상정지(EMERGENCY_STOP) 분기까지의 상태 흐름 |
+| ![전체 공정 플로우차트](images/01.png) | 전체 공정 플로우차트 — 초기화·MQTT 연결부터 IR 센서 감지, 상부 YOLO 검사, 측면 OpenCV 핀 검사, 불량 Gate 분류, 트레이 적재, 로봇 AGV 상차, AGV 운반·충전 스테이션 복귀, EMERGENCY_STOP 분기까지의 상태 흐름 |
+| ![시스템 구성도](images/02_system-overview.png) | 시스템 구성도 — 중앙 서버를 기준으로 myCobot, AGV, 카메라, 임베디드 노드, 관제 UI가 어떤 방향으로 연결되는지 정리한 전체 구조 |
+| ![운영 대시보드](images/03_operator-dashboard.png) | 운영 대시보드 — 실시간 카메라 피드, 검사 통계, AGV 맵, 작업 로그, AGV/로봇 제어를 한 화면에 배치해 설비 상태를 관제하도록 구성 |
+| ![프로젝트 발표 개요](images/04_project-overview-slide.png) | 발표용 전체 시스템 이미지 — 카메라 검사, 제품 분류, 트레이 적재, 로봇 이재, AGV 운반까지의 물리 흐름을 한 장으로 설명 |
+
+### Vision Evidence
+
+| 샘플 | 설명 |
+|------|------|
+| ![IC pin bent samples](images/05_ic-pinbent-samples.jpg) | IC Pinbent 샘플 — 측면 핀 휨/위치 이상을 검출해야 하는 대표 난이도 케이스 |
+| ![CAP normal samples](images/06_cap-normal-samples.jpg) | CAP Normal 샘플 — 정상 부품을 안정적으로 통과시키기 위한 기준 클래스 |
+| ![IC flipped samples](images/07_ic-flipped-samples.jpg) | IC Flipped 샘플 — 부품 방향 불량을 분류해 Gate 분기와 트레이 적재 결과로 연결 |
+| ![Conveyor frame](images/08_conveyor-frame.jpg) | 컨베이어 입력 프레임 — 검사 전 원본 프레임으로, 조명·각도·벨트 위치 변화가 있는 실제 입력 조건 |
 
 ## 🎬 시연 영상
 [![시연 영상](https://img.youtube.com/vi/rDrZn_7qteQ/0.jpg)](https://youtu.be/rDrZn_7qteQ)
