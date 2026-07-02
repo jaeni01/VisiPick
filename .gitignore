@@ -1,9 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 런타임 산출물
+logs/
+backup/
+*.log
+*.db
+data/
+sample_frames/
+mosquitto/data/
+
+# 모델 가중치 — 데모용 best.pt 만 추적
+models/*.pt
+!models/best.pt
+
+# 환경/시크릿
+.env
+appsettings.secret.json
+certs/
+*.key
+
+# IDE
+.vscode/
+.idea/
+
+# .NET (WPF HMI 빌드 잔재)
 bin/
 obj/
 .vs/
 *.user
-__pycache__/
-*.pyc
-appsettings.secret.json
-certs/
-*.key
