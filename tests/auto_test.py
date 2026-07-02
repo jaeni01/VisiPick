@@ -29,6 +29,9 @@ config["robot"]["dummy_mode"]  = True
 config["agv"]["dummy_mode"]    = True
 config["vision"]["dummy_interval_sec"] = 0.1     # 센서 트리거 간격 (가속)
 config["sensor"]["debounce_sec"]       = 0.02    # 디바운스도 낮춰야 트리거가 먹힘
+# 테스트 전용 DB — 운영 DB(config.database.path)를 건드리지 않고, 처음 도는
+# 환경(CI 등)에서도 테이블이 보장되도록 별도 경로 + init_db 로 초기화한다.
+config["database"]["path"] = "logs/autotest.db"
 
 from src.utils.logger import setup_logger
 logger = setup_logger("autotest")
@@ -105,9 +108,11 @@ class AutoTest:
         self.results: list[tuple] = []
 
     def run(self):
+        from src.utils.db_init import init_db
         from src.core.db import get_stats
-        from src.core.state_machine import VisiPickStateMachine, State
+        from src.core.state_machine import VisiPickStateMachine
 
+        init_db()                      # 테스트 DB 테이블 보장 (없으면 생성)
         infra = _Infra()
         infra.up()
         db_before = get_stats().get("total", 0)
@@ -127,7 +132,10 @@ class AutoTest:
                 ok = sm.run_cycle()
                 dt = round(time.time() - t0, 2)
                 collected = recipe_size if ok else 0
-                if ok and sm.state == State.COMPLETE:
+                # 연속 운전 구조: run_cycle 은 레시피 완성 즉시 True 를 반환하고
+                # 이재는 백그라운드로 넘긴 채 RUNNING 을 유지한다(COMPLETE 로 머물지
+                # 않음) → 성공 판정은 반환값 기준.
+                if ok:
                     self.success += 1
                     self.times.append(dt)
                     self.results.append((i, "SUCCESS", collected, dt))

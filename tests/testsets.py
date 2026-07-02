@@ -17,45 +17,49 @@ logger = setup_logger("testsets")
 
 MIN_CONF = 0.40
 
-# (이름, top, side, is_duplicate, expected_label, expected_gate)
+# (이름, top, side, is_duplicate, expected_verdict, expected_label, expected_gate)
+# verdict 는 4분류(PASS/REJECT/DUPLICATE/UNCERTAIN) 그대로 검증한다.
+# label 은 WPF 3분류 통일 정책에 따라 UNCERTAIN→DUPLICATE 로 합쳐 송출된다
+# (물리 동작 동일: Gate1 반환 컨베이어 → 재투입. decision._VERDICT_TO_LABEL 참고).
 CASES = [
     ("정상 신규(IC)",
      {"part": "IC", "confidence": 0.95, "verdict_hint": "PASS", "raw_class": "IC"},
-     {"verdict": "NORMAL"}, False, "NEEDED", "PASS_THROUGH"),
+     {"verdict": "NORMAL"}, False, "PASS", "NEEDED", "PASS_THROUGH"),
 
     ("중복(이미 수집)",
      {"part": "IC", "confidence": 0.95, "verdict_hint": "PASS", "raw_class": "IC"},
-     {"verdict": "NORMAL"}, True, "DUPLICATE", "GATE1_PUSH"),
+     {"verdict": "NORMAL"}, True, "DUPLICATE", "DUPLICATE", "GATE1_PUSH"),
 
     ("불량-상부 REJECT(Broken)",
      {"part": "IC", "confidence": 0.92, "verdict_hint": "REJECT", "raw_class": "Broken"},
-     {"verdict": "NORMAL"}, False, "DEFECT", "GATE2_PUSH"),
+     {"verdict": "NORMAL"}, False, "REJECT", "DEFECT", "GATE2_PUSH"),
 
     ("불량-측면 핀휨(BENT)",
      {"part": "IC", "confidence": 0.90, "verdict_hint": "PASS", "raw_class": "IC"},
-     {"verdict": "BENT"}, False, "DEFECT", "GATE2_PUSH"),
+     {"verdict": "BENT"}, False, "REJECT", "DEFECT", "GATE2_PUSH"),
 
     ("저신뢰 → UNCERTAIN(C1)",          # 저신뢰는 폐기(Gate2)가 아니라 반환(Gate1)
      {"part": "IC", "confidence": 0.20, "verdict_hint": "PASS", "raw_class": "IC"},
-     {"verdict": "NORMAL"}, False, "UNCERTAIN", "GATE1_PUSH"),
+     {"verdict": "NORMAL"}, False, "UNCERTAIN", "DUPLICATE", "GATE1_PUSH"),
 
     ("미검출 → UNCERTAIN(C1)",
      {"part": None, "confidence": 0.0, "verdict_hint": "UNKNOWN", "raw_class": None},
-     {"verdict": "UNKNOWN"}, False, "UNCERTAIN", "GATE1_PUSH"),
+     {"verdict": "UNKNOWN"}, False, "UNCERTAIN", "DUPLICATE", "GATE1_PUSH"),
 ]
 
 
 def run():
-    for name, top, side, dup, exp_label, exp_gate in CASES:
+    for name, top, side, dup, exp_verdict, exp_label, exp_gate in CASES:
         decider = Decision(is_duplicate=lambda p, _d=dup: _d, min_conf=MIN_CONF)
         r = decider.evaluate(top, side)
         label = verdict_to_label(r.verdict)
         gate = gate_action_for(label)
         defect = defect_code_for(r, top, side)
-        ok = (label == exp_label and gate == exp_gate)
+        ok = (r.verdict.value == exp_verdict and label == exp_label and gate == exp_gate)
         logger.info(f"[{'OK ' if ok else 'FAIL'}] {name:26} → "
                     f"{r.verdict.value:9} | {label:9} | {gate:12} | defect={defect}")
-        assert ok, f"{name}: expected {exp_label}/{exp_gate}, got {label}/{gate}"
+        assert ok, (f"{name}: expected {exp_verdict}/{exp_label}/{exp_gate}, "
+                    f"got {r.verdict.value}/{label}/{gate}")
     logger.success(f"testsets ALL PASS — {len(CASES)}/{len(CASES)} 케이스")
     print(f"\n[OK] testsets ALL PASS — {len(CASES)}/{len(CASES)} 케이스")
 
