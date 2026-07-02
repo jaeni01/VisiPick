@@ -1,0 +1,7 @@
+# CI·mock 실행용 최소 의존성 — tests/testsets, tests/auto_test 의 import 체인 전체.
+# (torch/ultralytics 는 classifier 에서 lazy import 라 dummy_mode 실행엔 불필요.
+#  실장비·YOLO 추론은 requirements.txt 사용. 버전은 requirements.txt 와 동일 고정.)
+numpy==2.4.4
+opencv-python-headless==4.13.0.92
+paho-mqtt==2.1.0
+loguru==0.7.3

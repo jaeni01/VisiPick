@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  logic-tests:
+    name: 판정 로직 테스트 (tests.testsets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 최소 의존성 설치
+        run: pip install -r requirements-ci.txt
+      - name: 4분류 판정 케이스 테이블 검증
+        run: python -m tests.testsets
+
+  mock-smoke:
+    name: 전 dummy 풀 사이클 스모크 (tests.auto_test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 최소 의존성 설치
+        run: pip install -r requirements-ci.txt
+      - name: 검사→판정→게이트→트레이→로봇→AGV 5사이클 (mock 인프라 자동 기동)
+        run: timeout 420 python -m tests.auto_test 5

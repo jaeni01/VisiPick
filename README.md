@@ -1,6 +1,7 @@
 # VisiPick — 실시간 영상 분석 제품 자동 정렬·분류 시스템 (VisiPick)
 > 비전 기반 불량 검사부터 로봇 Pick & Place, AGV 운송까지 검사→분류→이송 전 과정을 단일 상태머신으로 통합 제어하는 스마트 물류 자동화 시스템
 
+![CI](https://github.com/jaeni01/VisiPick/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
 ![YOLOv8](https://img.shields.io/badge/YOLOv8-00FFFF?style=flat-square&logo=yolo&logoColor=black)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat-square&logo=opencv&logoColor=white)
