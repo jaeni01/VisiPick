@@ -4,7 +4,7 @@
 production 과 동일한 경로(src.vision.Classifier.classify_top)를 그대로 사용하므로,
 여기서 보이는 부품/신뢰도/판정힌트가 곧 state_machine 이 판단하는 값이다.
 
-실행 (김선진 리그 PC — 컨베이어 상부 카메라):
+실행 (리그 PC — 컨베이어 상부 카메라):
     cd C:\\VisiPick
     python tools/live_yolo.py                 # config.cameras.top.index 카메라 라이브
     python tools/live_yolo.py --source 0       # 카메라 인덱스 직접 지정

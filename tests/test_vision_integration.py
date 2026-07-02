@@ -1,5 +1,5 @@
 """
-비전 이식 통합 자가검증 (염재니 비전 → 김선진 몸통).
+비전 이식 통합 자가검증 (염재니 비전 → 팀원(백엔드) 몸통).
 
 실행:
     cd C:\\Final_Project\\VisiPick
@@ -60,7 +60,7 @@ check("recipe.parts 와 KO 매핑 일치",
       set(to_korean(p) for p in PARTS_EN) == set(config["recipe"]["parts"]))
 
 # ── 2. 라벨/게이트 매핑 ──────────────────────────────────────────────────────
-section("2) Verdict → 김선진 3클래스 / 게이트 매핑")
+section("2) Verdict → 팀원(백엔드) 3클래스 / 게이트 매핑")
 check("PASS → NEEDED", verdict_to_label(Verdict.PASS) == "NEEDED")
 check("REJECT → DEFECT", verdict_to_label(Verdict.REJECT) == "DEFECT")
 check("DUPLICATE → DUPLICATE", verdict_to_label(Verdict.DUPLICATE) == "DUPLICATE")

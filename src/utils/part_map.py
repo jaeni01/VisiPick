@@ -11,7 +11,7 @@
     Heatsink         | HEATSINK_TO220    | 방열판
 
 - 염재니 classifier 는 영문(part)을 반환한다.
-- 김선진 RecipeManager.needs()/mark_collected(), TrayManager, WPF 표시, DB 는
+- 팀원(백엔드) RecipeManager.needs()/mark_collected(), TrayManager, WPF 표시, DB 는
   한글 부품명을 사용한다.
 - 변환 로직을 여러 파일에 흩뿌리면 "config 2벌" 함정이 재발하므로,
   EN <-> KO <-> DB enum 변환은 **오직 이 파일에서만** 수행한다.

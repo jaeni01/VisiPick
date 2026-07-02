@@ -387,7 +387,7 @@ class VisiPickStateMachine:
                 logger.info(f"[측면] 투표 NORMAL={n_normal} BENT={n_bent} "
                             f"UNKNOWN={n_unknown} → {verdict_txt} (참고용, 판정 미반영)")
 
-            action = gate_action_for(cls)                          # 김선진 게이트 매핑 그대로
+            action = gate_action_for(cls)                          # 팀원(백엔드) 게이트 매핑 그대로
             # 불량 코드: 상부 불량 클래스만 사용 (측면 핀투표는 최종 판정 미반영).
             if cls == "DEFECT":
                 _all_defcls = []

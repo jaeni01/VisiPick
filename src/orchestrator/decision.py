@@ -8,18 +8,18 @@ inspection) results into one of:
   - DUPLICATE : 중복   -> Gate1  (this part type already collected)
   - UNCERTAIN : 보류   -> Gate1  (저신뢰/미검출 — 폐기 아닌 반환 후 재투입, C1)
 
-염재니 Decision.evaluate(top, side) 를 채택하고 김선진 judge() 는 폐기한다.
-김선진 인프라(gate_action_for, 3클래스 라벨, DB defect_code)와의 경계는
+염재니 Decision.evaluate(top, side) 를 채택하고 팀원(백엔드) judge() 는 폐기한다.
+팀원(백엔드) 인프라(gate_action_for, 3클래스 라벨, DB defect_code)와의 경계는
 아래 어댑터로 단일화:
   - verdict_to_label : PASS/REJECT/DUPLICATE -> NEEDED/DEFECT/DUPLICATE
   - defect_code_for  : top/side -> NONE/BENT_PIN/BROKEN/UNKNOWN (DB DefectCode)
-  - gate_action_for  : 김선진 것 그대로 유지 (NEEDED->PASS_THROUGH ...)
+  - gate_action_for  : 팀원(백엔드) 것 그대로 유지 (NEEDED->PASS_THROUGH ...)
 
 Inputs
 ------
 top  = {"part": str|None, "verdict_hint": "PASS|REJECT|UNKNOWN", "confidence": float, "raw_class": str}
 side = {"verdict": "NORMAL|BENT|UNKNOWN", "pin_count": int, "gap_cv": float, "tip_y_range_px": int}
-is_duplicate(part) -> bool   (caller injects; 부호 주의 — 김선진 needs() 와 반대)
+is_duplicate(part) -> bool   (caller injects; 부호 주의 — 팀원(백엔드) needs() 와 반대)
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -50,7 +50,7 @@ class DecisionResult:
 class Decision:
     """Stateless evaluator. Caller injects a `is_duplicate` predicate.
 
-    주의: is_duplicate(part)=True 면 '중복'. 김선진 RecipeManager.needs(part)=True 는
+    주의: is_duplicate(part)=True 면 '중복'. 팀원(백엔드) RecipeManager.needs(part)=True 는
     '아직 필요(안 모음)' 로 부호가 반대다. 따라서 호출부에서 반드시
         is_duplicate = lambda p: (p is not None) and (not recipe.needs(to_korean(p)))
     로 감싸야 한다 (영문 part → 한글 변환 포함).
@@ -99,7 +99,7 @@ class Decision:
                               debug={"hint": hint, "pin": pin_verdict})
 
 
-# ── 김선진 경계 어댑터 ────────────────────────────────────────────────────────
+# ── 팀원(백엔드) 경계 어댑터 ────────────────────────────────────────────────────────
 
 # 염재니 Verdict -> 분류 라벨.
 # UNCERTAIN(저신뢰/미검출)은 DUPLICATE 와 물리 동작이 같다(반환 컨베이어 → 재투입).
@@ -131,7 +131,7 @@ def verdict_to_label(verdict) -> str:
 
 
 def defect_code_for(result: DecisionResult, top: dict, side: dict) -> str:
-    """DecisionResult + top/side → 김선진 DB DefectCode 문자열.
+    """DecisionResult + top/side → 팀원(백엔드) DB DefectCode 문자열.
 
     반환: "NONE" | "BENT_PIN" | "BROKEN" | "UNKNOWN"
     REJECT 가 아닌 경우(NEEDED/DUPLICATE)는 항상 "NONE".
@@ -173,5 +173,5 @@ def defect_codes_for(raw_classes, side: dict) -> list:
 
 
 def gate_action_for(classification: str) -> str:
-    """classification → gate_action 문자열 (김선진 인프라 그대로)."""
+    """classification → gate_action 문자열 (팀원(백엔드) 인프라 그대로)."""
     return _GATE_ACTION.get(classification, "PASS_THROUGH")

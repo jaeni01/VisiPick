@@ -12,8 +12,8 @@ Mode is selected from config.vision.mode. Classical is the spec-required
 fallback and runs without GPU; YOLO is the production path when best.pt
 is available.
 
-이식 시 변경점 (인프라는 김선진 것 사용):
-  - 로깅: 김선진 src.utils.logger.setup_logger 사용 (날짜별 롤링 로그).
+이식 시 변경점 (인프라는 팀원(백엔드) 것 사용):
+  - 로깅: 팀원(백엔드) src.utils.logger.setup_logger 사용 (날짜별 롤링 로그).
   - 공개 Classifier 파사드: 인자 없는 생성자 Classifier() 지원
     (state_machine 이 Classifier() 로 생성 — config.vision 을 내부에서 로드).
   - classify_top(frame) -> dict 어댑터 추가 (염재니 Decision.evaluate 의 top 입력).

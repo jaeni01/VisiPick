@@ -15,7 +15,7 @@ client.loop_start()
 
 print("="*50)
 print("VisiPick Mock Publisher")
-print("최지윤님 WPF 독립 개발용 가짜 데이터 생성기")
+print("팀원(HMI) WPF 독립 개발용 가짜 데이터 생성기")
 print("="*50)
 
 COMPONENTS = [

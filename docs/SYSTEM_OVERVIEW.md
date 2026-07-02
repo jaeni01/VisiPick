@@ -1,15 +1,15 @@
 # VisiPick 시스템 구조 요약서 (V6.3)
-> 작성: 김선진 | 버전: 6.3 | 날짜: 2026-05-22
+> 작성: VisiPick 팀 | 버전: 6.3 | 날짜: 2026-05-22
 
 ## 팀 역할 분담
 
 | 담당 | 역할 | 주요 산출물 |
 |------|------|-------------|
 | 염재니 | Central Server 총괄 | `core/` + `vision/` + `orchestrator/` + `devices/robot.py` — Camera1·Camera2 OpenCV 파이프라인, 4종 분류기, 불량 검출기, 레시피 매칭, FSM, myCobot 트레이 이재 |
-| 김선진 | Backend Infra + 통합 | `server/api.py` (FastAPI+WebSocket+Swagger) + `server/db.py` (SQLite) + `devices/agv_mqtt.py` + Mosquitto 셋업 + MockDataService + `config.json` + 통합 테스트 |
-| 최지윤 | HMI 전담 | C# WPF Pure Display — 6분할 대시보드 (Camera1·Camera2 영상, 분류 현황, 레시피 체크리스트, AGV 맵, 이벤트 로그) + MockDataService로 독립 개발 |
-| 박은수 | Embedded 전담 | ESP32 펌웨어 (푸셔 Gate1·Gate2 + 컨1 스텝모터 + 푸셔 타이밍), AGV ESP32-CAM (비전 라인팔로잉 + MQTT + 지게 서보) |
-| 김동호 | HW + Ops | 3D프린팅 (트레이, 가이드 슘트, 게이트 마운트, 지게 모듈), AGV 조립, 시제품 제작, 시연 운영, 테스트 |
+| 팀원(백엔드) | Backend Infra + 통합 | `server/api.py` (FastAPI+WebSocket+Swagger) + `server/db.py` (SQLite) + `devices/agv_mqtt.py` + Mosquitto 셋업 + MockDataService + `config.json` + 통합 테스트 |
+| 팀원(HMI) | HMI 전담 | C# WPF Pure Display — 6분할 대시보드 (Camera1·Camera2 영상, 분류 현황, 레시피 체크리스트, AGV 맵, 이벤트 로그) + MockDataService로 독립 개발 |
+| 팀원(임베디드) | Embedded 전담 | ESP32 펌웨어 (푸셔 Gate1·Gate2 + 컨1 스텝모터 + 푸셔 타이밍), AGV ESP32-CAM (비전 라인팔로잉 + MQTT + 지게 서보) |
+| 팀원(하드웨어·운영) | HW + Ops | 3D프린팅 (트레이, 가이드 슘트, 게이트 마운트, 지게 모듈), AGV 조립, 시제품 제작, 시연 운영, 테스트 |
 
 ## 시스템 구성
 
@@ -75,7 +75,7 @@ src/
     └── db_init.py
 ```
 
-## HMI 화면 구성 (최지윤)
+## HMI 화면 구성 (팀원(HMI))
 
 ```
 ┌─────────────────────────────────────────────────┐

@@ -1,6 +1,6 @@
 """
 Camera2 — side-view pin inspection.
-(염재니 비전 이식 — 통합방향 A. 김선진 defect_detector(더미) 자리를 측면 핀검사로 대체)
+(염재니 비전 이식 — 통합방향 A. 팀원(백엔드) defect_detector(더미) 자리를 측면 핀검사로 대체)
 
 부품별 핀 방향(pin_direction)에 따라 검출 방식이 다르다
 ──────────────────────────────────────────────────────────────────────────────
@@ -23,8 +23,8 @@ Verdict
   BENT   : 핀 수 불일치 / 간격 불균일 / 정렬 이탈
   UNKNOWN: 핀(또는 몸체) 미검출
 
-이식 시 변경점 (인프라는 김선진 것 사용):
-  - 로깅: 김선진 src.utils.logger.setup_logger 사용.
+이식 시 변경점 (인프라는 팀원(백엔드) 것 사용):
+  - 로깅: 팀원(백엔드) src.utils.logger.setup_logger 사용.
   - 인자 없는 PinInspector() 지원 (state_machine 이 그렇게 생성).
   - inspect_side(frame, part) -> dict 어댑터 (Decision.evaluate 의 side 입력).
   - dummy_mode=True 폴백 (장비 없는 시연 안전판).

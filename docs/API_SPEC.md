@@ -1,5 +1,5 @@
 # VisiPick REST API 명세서 (V6.3)
-> 작성: 김선진 | 버전: 2.0 | Swagger UI: http://localhost:8000/docs
+> 작성: VisiPick 팀 | 버전: 2.0 | Swagger UI: http://localhost:8000/docs
 
 ## Base URL
 

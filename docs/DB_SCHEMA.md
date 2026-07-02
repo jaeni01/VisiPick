@@ -1,5 +1,5 @@
 # VisiPick DB 스키마 명세 (V6.3)
-> 작성: 김선진 | DB: SQLite WAL | 경로: `C:\VisiPick\data\visipick.db`
+> 작성: VisiPick 팀 | DB: SQLite WAL | 경로: `C:\VisiPick\data\visipick.db`
 
 ## ER 다이어그램
 
