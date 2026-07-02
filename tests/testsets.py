@@ -20,7 +20,9 @@ MIN_CONF = 0.40
 # (이름, top, side, is_duplicate, expected_verdict, expected_label, expected_gate)
 # verdict 는 4분류(PASS/REJECT/DUPLICATE/UNCERTAIN) 그대로 검증한다.
 # label 은 WPF 3분류 통일 정책에 따라 UNCERTAIN→DUPLICATE 로 합쳐 송출된다
-# (물리 동작 동일: Gate1 반환 컨베이어 → 재투입. decision._VERDICT_TO_LABEL 참고).
+# (물리 동작 동일: 반환 컨베이어 → 재투입. decision._VERDICT_TO_LABEL 참고.
+#  GATE*_PUSH 문자열은 HMI/DB 송출용 라벨로, 물리 게이트 번호와 다르다 —
+#  docs/ARCHITECTURE.md '명명 주의' 참고).
 CASES = [
     ("정상 신규(IC)",
      {"part": "IC", "confidence": 0.95, "verdict_hint": "PASS", "raw_class": "IC"},
